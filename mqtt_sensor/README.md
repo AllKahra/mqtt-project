@@ -1,7 +1,3 @@
-Sexta-feira, 5 de setembro de 2025, 22:03. A noite em São Caetano do Sul continua.
-
-Entendido. Aqui está a versão reescrita do arquivo README.md, com o mesmo conteúdo e estrutura, mas sem o uso de emojis.
-
 Projeto MQTT Seguro com Docker
 Este projeto oferece um ambiente MQTT completo e seguro, totalmente containerizado com Docker Compose. A arquitetura inclui um broker Mosquitto protegido, um sensor de temperatura em Python e um subscriber para testes, todos comunicando-se através de um canal criptografado com TLS.
 
