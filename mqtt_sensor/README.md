@@ -1,4 +1,5 @@
 Projeto MQTT Seguro com Docker
+
 Este projeto oferece um ambiente MQTT completo e seguro, totalmente containerizado com Docker Compose. A arquitetura inclui um broker Mosquitto protegido, um sensor de temperatura em Python e um subscriber para testes, todos comunicando-se através de um canal criptografado com TLS.
 
 O foco principal é demonstrar as melhores práticas de segurança em IoT: Autenticação por usuário/senha, Autorização por tópico (ACLs) e Criptografia de ponta a ponta (TLS).
