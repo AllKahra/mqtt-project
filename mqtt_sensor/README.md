@@ -1,111 +1,149 @@
-# Projeto MQTT - Sensor Python com TLS e Autenticação
+Sexta-feira, 5 de setembro de 2025, 22:03. A noite em São Caetano do Sul continua.
 
-Este projeto demonstra um ambiente MQTT seguro, com um **broker Mosquitto**, um **sensor de temperatura em Python** e um **subscriber TLS**. O objetivo é garantir **autenticação, segregação de portas e criptografia** nas conexões externas, enquanto o sensor opera de forma funcional na rede interna.
+Entendido. Aqui está a versão reescrita do arquivo README.md, com o mesmo conteúdo e estrutura, mas sem o uso de emojis.
 
----
+Projeto MQTT Seguro com Docker
+Este projeto oferece um ambiente MQTT completo e seguro, totalmente containerizado com Docker Compose. A arquitetura inclui um broker Mosquitto protegido, um sensor de temperatura em Python e um subscriber para testes, todos comunicando-se através de um canal criptografado com TLS.
 
-## Estrutura do Projeto
+O foco principal é demonstrar as melhores práticas de segurança em IoT: Autenticação por usuário/senha, Autorização por tópico (ACLs) e Criptografia de ponta a ponta (TLS).
 
--   `docker-compose.yml`: Define os serviços do broker, do sensor e do subscriber.
--   `src/temperature-sensor-1.py`: Código Python do sensor de temperatura.
--   `mosquitto/config/mosquitto.conf`: Arquivo de configuração do broker.
--   `mosquitto/config/mosquitto.passwd`: Senhas de autenticação.
--   `mosquitto/config/mosquitto.acl`: Regras de controle de acesso por tópico.
--   `mosquitto/certs/`: Certificados TLS (`ca.crt`, `server.crt`, `server.key`).
+Principais Funcionalidades
+Segurança Robusta: Comunicação forçada via TLS na porta 8883.
 
----
+Controle de Acesso: Autenticação obrigatória e permissões de leitura/escrita por usuário definidas em um arquivo de ACL.
 
-## Alterações e Correções
+Containerizado e Portátil: Todos os serviços são definidos no docker-compose.yml, garantindo um setup rápido e consistente em qualquer máquina com Docker.
 
-### 1. Sensor Python
+Fluxo de Desenvolvimento Eficiente: O código-fonte do sensor é mapeado diretamente para o contêiner, permitindo edições em tempo real sem a necessidade de reconstruir a imagem.
 
-O sensor Python foi corrigido para funcionar de maneira confiável. Os seguintes problemas foram resolvidos:
+Configuração Centralizada: As credenciais e configurações sensíveis são gerenciadas através de um arquivo .env para maior segurança.
 
--   **Protocolo:** O protocolo (presente no .py) foi alterado de `MQTTv5` para `MQTTv3.1.1` (`MQTTv311`) para garantir compatibilidade com o Mosquitto 2.0.20.
--   **Host e Porta:** O host foi definido como `mqtt-broker` e a porta como `1883`, permitindo a comunicação interna via TCP.
+Arquitetura
+O ambiente opera em uma rede Docker interna, onde os clientes se conectam ao broker através de seu nome de serviço (mqtt-broker). As portas são expostas no host para interação externa e testes.
 
-Como resultado, o sensor agora publica leituras de forma contínua e confiável.
+ MÁQUINA HOST
++---------------------------------------------------------------------------------+
+|                                                                                 |
+| [MQTT Explorer] ---- TLS/8883 ----> |           REDE DOCKER INTERNA           | |
+| [mosquitto_sub] ---- TLS/8883 ----> |                                           | |
+|                                     |  +------------------+       +-----------+ | |
+|                                     |  | temperature-     |       | mqtt-     | | |
+|                                     |  | sensor-1 (py)    |------>| broker    | | |
+|                                     |  +------------------+ <------| Mosquitto | | |
+|                                     |        ^ |                  +-----------+ | |
+|                                     +--------|-|--------------------------------+ |
+|                                              | |                                  |
+| (Live Reload)                                | +--- (Arquivos de Configuração)      |
+|                                              |                                  |
+| [src/sensor.py] <----------------------------+      [mosquitto.conf, acl.conf,    |
+|                                                      password.txt, certs/]        |
++---------------------------------------------------------------------------------+
+Pré-requisitos
+Docker
 
-### 2. Broker MQTT
+Docker Compose
 
-O broker foi configurado para gerenciar o tráfego de maneira segura:
+OpenSSL (geralmente já instalado em Linux/macOS)
 
--   **Porta 1883:** Dedicada à comunicação interna de sensores, sem a necessidade de TLS.
--   **Porta 8883:** Designada para conexões externas, com **TLS** e **autenticação obrigatória**.
--   **Segurança:** A configuração `allow_anonymous false` na porta externa, o `password_file` e as **ACLs (Access Control Lists)** foram implementadas para controlar rigorosamente o acesso.
--   **Criptografia:** Certificados TLS foram gerados para garantir a criptografia, integridade e autenticidade das mensagens.
+Como Executar o Projeto
+Siga estes passos a partir de um terminal na pasta raiz do projeto.
 
-**Exemplo de ACL:**
+1. Clonar o Repositório
+Bash
 
-```text
-user <USUÁRIO_CRIADO>
-topic readwrite sensor/#
-````
+git clone https://github.com/csai4cps/mqtt-project.git mqtt-project-seguro
+cd mqtt-project-seguro
+2. Criar e Configurar o Arquivo de Ambiente
+As senhas dos usuários são gerenciadas em um arquivo .env para não ficarem expostas no docker-compose.yml.
 
------
+Crie o arquivo a partir do exemplo:
 
-## Como Executar o Projeto
+Bash
 
-### 1\. Criando a Autenticação
+# (No Linux/macOS)
+cp .env.example .env
 
-Para adicionar uma camada de segurança ao broker, a autenticação foi configurada. As etapas a seguir foram executadas para criar e gerenciar um arquivo de senhas, garantindo que apenas usuários autorizados possam se conectar.
+# (No Windows)
+copy .env.example .env
+Abra o arquivo .env e altere as senhas se desejar.
 
-1.  **Estrutura de diretórios:**
+3. Gerar os Certificados TLS
+Estes comandos criarão os certificados autoassinados necessários para a comunicação segura.
 
-    ```bash
-    mkdir -p /caminho/do/seu/projeto/mosquitto/{config,data,log,certs}
-    ```
+Bash
 
-    Isso cria a estrutura de pastas necessária para o broker.
+# Cria o diretório para os certificados
+mkdir -p mosquitto/certs
 
-2.  **Configuração do Mosquitto:**
-    No arquivo de configuração `mosquitto.conf`, as seguintes linhas foram adicionadas para desabilitar conexões anônimas e apontar para o arquivo de senhas:
+# Gera o certificado do servidor (server.crt) e a chave (server.key)
+docker run --rm -it -v $(pwd)/mosquitto/certs:/certs alpine/openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /certs/server.key -out /certs/server.crt -subj "/CN=mqtt-broker"
 
-    ```ini
-    allow_anonymous false
-    password_file /caminho/do/seu/projeto/mosquitto/config/mosquitto.passwd
-    ```
+# Gera o certificado da Autoridade Certificadora (ca.crt)
+docker run --rm -it -v $(pwd)/mosquitto/certs:/certs alpine/openssl req -x509 -newkey rsa:2048 -keyout /certs/ca.key -out /certs/ca.crt -days 3650 -nodes -subj "/CN=MyProjectCA"
+4. Criar os Usuários do Broker
+Estes comandos usam o utilitário do Mosquitto para criar os usuários e senhas no arquivo password.txt.
 
-3.  **Criação de usuário e senha:**
-    O comando `mosquitto_passwd` foi usado para criar o arquivo de senhas e adicionar um novo usuário. A ferramenta solicita que você crie um nome de usuário e uma senha segura.
+Bash
 
-    ```bash
-    mosquitto_passwd -c /caminho/do/seu/projeto/mosquitto/config/mosquitto.passwd <seu_usuario>
-    ```
+# Cria o usuário 'sensor_user'
+docker run --rm -it -v $(pwd)/mosquitto:/mosquitto eclipse-mosquitto:2.0.20 mosquitto_passwd -c -b /mosquitto/password.txt sensor_user ${SENSOR_PASSWORD}
 
-    Após a execução, um arquivo de senhas criptografadas foi gerado, contendo as credenciais de acesso.
+# Adiciona o usuário 'subscriber_user'
+docker run --rm -it -v $(pwd)/mosquitto:/mosquitto eclipse-mosquitto:2.0.20 mosquitto_passwd -b /mosquitto/password.txt subscriber_user ${SUBSCRIBER_PASSWORD}
+5. Iniciar os Serviços
+Este comando irá construir a imagem do sensor, baixar la imagem do Mosquitto e iniciar todos os contêineres em segundo plano.
 
-### 2\. Executando os Serviços
+Bash
 
-1.  **Inicie os serviços:**
-    ```bash
-    docker compose up -d --build
-    ```
+docker compose up -d --build
+O ambiente está no ar!
 
------
+Testando a Aplicação
+Verificando os Logs
+Para ver o sensor publicando e o subscriber recebendo as mensagens, use o comando:
 
-## Testes
+Bash
 
-### Publicar manualmente (sensor interno)
+docker compose logs -f mqtt-subscriber
+Você deverá ver as mensagens de temperatura chegando a cada 5 segundos.
 
-```bash
-mosquitto_pub -h localhost -p 1883 -t 'sensor/temperature' -m '27.5' -d
-```
+Conectando um Cliente Externo (via Terminal)
+Use o mosquitto_sub da sua máquina local para se conectar ao broker, usando as credenciais e o certificado.
 
-### Subscriber externo via TLS
+Bash
 
-```bash
-mosquitto_sub -h localhost -p 8883 --cafile ./mosquitto/certs/ca.crt -t 'sensor/#' -v --tls-version tlsv1.2 -u <USUÁRIO_CRIADO> -P <SENHA> -d
-```
+mosquitto_sub \
+  -h localhost \
+  -p 8883 \
+  -t 'sensor/#' \
+  -v \
+  -u "subscriber_user" \
+  -P "SENHA_DO_SUBSCRIBER_AQUI" \
+  --cafile ./mosquitto/certs/ca.crt
+Conectando com o MQTT Explorer
+Host: mqtts://localhost (ou o IP da sua máquina)
 
------
+Port: 8883
 
-## Resumo Técnico
+Username: subscriber_user
 
-  - O **Sensor Python** foi corrigido e está funcionando via **TCP** na rede interna.
-  - O protocolo foi alterado de **MQTTv5** para **MQTTv3.1.1**.
-  - O broker foi configurado com **TLS** e **autenticação** para conexões externas.
-  - A segregação de portas (1883 para internos e 8883 para externos) garante a segurança do tráfego.
-  - **Certificados TLS** foram criados para proteger a comunicação externa.
+Password: A senha que você definiu para o subscriber.
 
-Este projeto demonstra boas práticas de segurança MQTT, mantendo o ambiente funcional e garantindo a integridade dos dados transmitidos.
+TLS: Ativado.
+
+Certificate > CA File: Selecione o arquivo ca.crt na pasta mosquitto/certs.
+
+Estrutura do Projeto (Recomendada)
+.
+├── .env                    # Credenciais (não versionar)
+├── .env.example            # Arquivo de exemplo para as credenciais
+├── docker-compose.yml      # Orquestração dos serviços
+├── Dockerfile.temperature-sensor-1 # Definição da imagem do sensor
+├── mosquitto/
+│   ├── acl.conf            # Regras de acesso (ACL)
+│   ├── certs/              # Certificados TLS
+│   ├── mosquitto.conf      # Configuração do broker
+│   └── password.txt        # Arquivo de senhas (não versionar)
+└── src/
+    └── temperature-sensor-1.py # Código Python do sensor
+
